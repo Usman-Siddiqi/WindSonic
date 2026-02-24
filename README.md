@@ -7,7 +7,7 @@ It searches songs using Apple's public **iTunes Search API** (no account require
 ## Highlights
 
 - Native Windows app (no Electron / no embedded browser UI)
-- Audio-only playback for lower GPU/CPU overhead while gaming
+- Audio-only playback for lower GPU/CPU overhead
 - iTunes Search API metadata search (no Spotify Premium / no API signup required)
 - Queue, playlists, recents, shuffle, repeat, next/previous
 - Spotify playlist import (public playlist URL import + optional full import via Spotify API keys)
@@ -93,7 +93,7 @@ Use `Refresh` to fetch a new set of YouTube candidates.
 
 ## Performance Notes
 
-WindSonic is tuned for gaming-friendly playback:
+WindSonic is tuned for low memory and cpu usage playback:
 
 - YouTube playback is audio-only (`libVLC` is started with no video rendering)
 - Native WPF UI with virtualized lists where appropriate
