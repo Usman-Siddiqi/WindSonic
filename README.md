@@ -1,6 +1,6 @@
 # WindSonic
 
-WindSonic is a native Windows music player built with **WPF (.NET 8)** for low-overhead listening while gaming.
+WindSonic is a native Windows music player built with **WPF (.NET 8)** for low-overhead listening.
 
 It searches songs using Apple's public **iTunes Search API** (no account required), then plays audio from YouTube using **YoutubeExplode** + native **libVLC** (audio-only).
 
