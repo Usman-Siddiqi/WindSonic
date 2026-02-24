@@ -28,12 +28,16 @@ public partial class App : Application
             var spotifyService = new SpotifyService();
             var youTubeAudioResolver = new YouTubeAudioResolverService();
             _audioPlayerService = new NativeAudioPlayerService();
+            var audioCacheService = new AudioCacheService();
+            var spotifyPlaylistImportService = new SpotifyPlaylistImportService();
 
             var viewModel = new MainWindowViewModel(
                 settingsStore,
                 spotifyService,
+                spotifyPlaylistImportService,
                 youTubeAudioResolver,
-                _audioPlayerService);
+                _audioPlayerService,
+                audioCacheService);
 
             var mainWindow = new MainWindow(viewModel);
             MainWindow = mainWindow;

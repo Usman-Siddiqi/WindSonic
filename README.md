@@ -10,7 +10,9 @@ It searches songs using Apple's public **iTunes Search API** (no account require
 - Audio-only playback for lower GPU/CPU overhead while gaming
 - iTunes Search API metadata search (no Spotify Premium / no API signup required)
 - Queue, playlists, recents, shuffle, repeat, next/previous
+- Spotify playlist import (public playlist URL import + optional full import via Spotify API keys)
 - YouTube **Source Picker** (switch between multiple YouTube uploads for the same track)
+- 1 GB on-disk audio cache with least-recently-played cleanup (LRU-style eviction)
 - Glassy dark UI with custom native window chrome
 - Persistent settings and queue/library state in `%AppData%\WindSonic`
 
@@ -58,6 +60,21 @@ dotnet run --project .\WindSonic.App\WindSonic.App.csproj
 - `Load + Play`: replace queue with a playlist and start playback
 - `Append to Queue`: add playlist tracks to current queue
 
+### Import a Spotify playlist
+
+WindSonic can import Spotify playlist tracks into your local WindSonic playlists by matching track title/artist/duration against the iTunes Search API.
+
+1. Go to the **Playlists** tab
+2. Select an existing playlist (or leave none selected to create a new one)
+3. Paste a Spotify playlist URL (or `spotify:playlist:...`) into the import box
+4. Click `Import Spotify Playlist`
+
+Notes:
+- Public Spotify playlists can be imported without logging in
+- Public page imports may only include the first preloaded tracks on larger playlists (often ~30)
+- For full large-playlist imports, expand **Advanced: Spotify API keys** and add Spotify app `Client ID` + `Client Secret` (client credentials flow)
+- Import includes retry/backoff for rate limits (`429`) on both Spotify and Apple iTunes API requests
+
 ### Source picker (fix bad YouTube uploads)
 
 When a song is playing:
@@ -81,6 +98,7 @@ WindSonic is tuned for gaming-friendly playback:
 - YouTube playback is audio-only (`libVLC` is started with no video rendering)
 - Native WPF UI with virtualized lists where appropriate
 - Async/cancellable search and stream resolution
+- Background audio caching reduces repeat-play startup time and bandwidth use
 - x64 target only
 
 ## Local Data / Privacy
@@ -88,9 +106,19 @@ WindSonic is tuned for gaming-friendly playback:
 WindSonic stores local settings and queue/library state in:
 
 - `%AppData%\WindSonic\settings.json`
+- `%AppData%\WindSonic\cache\` (cached audio files, capped at 1 GB)
+- `%AppData%\WindSonic\cache-index.json` (cache metadata / last-played timestamps)
 - `%AppData%\WindSonic\startup-error.log` (if a startup crash occurs)
 
 No cloud sync, telemetry, or accounts are required for search/playback metadata lookup.
+
+## Caching
+
+WindSonic caches YouTube audio files locally after playback starts.
+
+- Cache size limit: **1 GiB**
+- Eviction policy: removes the least-recently-played cached songs first when over the limit
+- Cache hits are shown in the app as `YouTube (cached)` in the **Now Playing** panel
 
 ## Troubleshooting
 

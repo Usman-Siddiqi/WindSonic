@@ -12,8 +12,10 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     private readonly SettingsStore _settingsStore;
     private readonly SpotifyService _searchService;
+    private readonly SpotifyPlaylistImportService _spotifyPlaylistImportService;
     private readonly YouTubeAudioResolverService _youTubeAudioResolverService;
     private readonly NativeAudioPlayerService _audioPlayerService;
+    private readonly AudioCacheService _audioCacheService;
     private readonly AppSettings _settings;
     private readonly Dictionary<string, YouTubeAudioSource> _resolvedSourceCache = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<YouTubeAudioSource>> _sourceOptionsCache = new(StringComparer.Ordinal);
@@ -42,15 +44,18 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly RelayCommand _playSelectedSourceCommand;
     private readonly RelayCommand _refreshSourceOptionsCommand;
     private readonly RelayCommand _saveCredentialsCommand;
+    private readonly AsyncRelayCommand _importSpotifyPlaylistCommand;
 
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _playCts;
+    private CancellationTokenSource? _playlistImportCts;
     private bool _disposed;
     private bool _suspendPersistence;
     private bool _handlingPlaybackEnded;
     private DateTimeOffset _ignorePlaybackEndUntilUtc;
 
     private string _searchText = string.Empty;
+    private string _spotifyPlaylistImportInput = string.Empty;
     private SpotifyTrack? _selectedTrack;
     private QueuedTrack? _selectedQueueItem;
     private PlaylistDefinition? _selectedPlaylist;
@@ -67,6 +72,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private string? _currentSourcePickerTrackId;
     private bool _isSearching;
     private bool _isResolving;
+    private bool _isImportingPlaylist;
     private int _volume;
     private bool _shuffleEnabled;
     private RepeatMode _repeatMode = RepeatMode.All;
@@ -80,13 +86,17 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public MainWindowViewModel(
         SettingsStore settingsStore,
         SpotifyService spotifyService,
+        SpotifyPlaylistImportService spotifyPlaylistImportService,
         YouTubeAudioResolverService youTubeAudioResolverService,
-        NativeAudioPlayerService audioPlayerService)
+        NativeAudioPlayerService audioPlayerService,
+        AudioCacheService audioCacheService)
     {
         _settingsStore = settingsStore;
         _searchService = spotifyService;
+        _spotifyPlaylistImportService = spotifyPlaylistImportService;
         _youTubeAudioResolverService = youTubeAudioResolverService;
         _audioPlayerService = audioPlayerService;
+        _audioCacheService = audioCacheService;
 
         SearchResults = new ObservableCollection<SpotifyTrack>();
         QueueItems = new ObservableCollection<QueuedTrack>();
@@ -136,6 +146,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _playSelectedSourceCommand = new RelayCommand(() => _ = PlaySelectedSourceForCurrentTrackAsync(), CanPlaySelectedSource);
         _refreshSourceOptionsCommand = new RelayCommand(() => _ = RefreshSourceOptionsForCurrentTrackAsync(forceRefresh: true), CanRefreshSourceOptions);
         _saveCredentialsCommand = new RelayCommand(SaveCredentials);
+        _importSpotifyPlaylistCommand = new AsyncRelayCommand(ImportSpotifyPlaylistAsync, CanImportSpotifyPlaylist);
 
         RefreshAllDerivedState();
         StatusMessage = "Ready. Search songs, queue them, and build playlists.";
@@ -171,6 +182,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public RelayCommand PlaySelectedSourceCommand => _playSelectedSourceCommand;
     public RelayCommand RefreshSourceOptionsCommand => _refreshSourceOptionsCommand;
     public RelayCommand SaveCredentialsCommand => _saveCredentialsCommand;
+    public AsyncRelayCommand ImportSpotifyPlaylistCommand => _importSpotifyPlaylistCommand;
 
     public string SearchText
     {
@@ -181,6 +193,19 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             {
                 _searchCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(SearchSummary));
+            }
+        }
+    }
+
+    public string SpotifyPlaylistImportInput
+    {
+        get => _spotifyPlaylistImportInput;
+        set
+        {
+            if (SetProperty(ref _spotifyPlaylistImportInput, value))
+            {
+                OnPropertyChanged(nameof(SpotifyPlaylistImportSummary));
+                RefreshCommandStates();
             }
         }
     }
@@ -301,7 +326,20 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
-    public bool IsBusy => IsSearching || IsResolving;
+    public bool IsImportingPlaylist
+    {
+        get => _isImportingPlaylist;
+        private set
+        {
+            if (SetProperty(ref _isImportingPlaylist, value))
+            {
+                OnPropertiesChanged(nameof(IsBusy), nameof(SpotifyPlaylistImportSummary));
+                RefreshCommandStates();
+            }
+        }
+    }
+
+    public bool IsBusy => IsSearching || IsResolving || IsImportingPlaylist;
 
     public string StatusMessage
     {
@@ -436,6 +474,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public string SourcePickerSummary => BuildSourcePickerSummary();
     public string PlaylistSummary => Playlists.Count == 0 ? "No playlists yet" : $"{Playlists.Count} playlists";
     public string RecentsSummary => RecentTracks.Count == 0 ? "No recent plays" : $"{RecentTracks.Count} recent tracks";
+    public string SpotifyPlaylistImportSummary => BuildSpotifyPlaylistImportSummary();
     public string EngineModeLabel => "Native WPF + libVLC (audio-only YouTube stream) • Metadata: Apple iTunes Search API";
 
     public async Task InitializeAsync()
@@ -456,8 +495,10 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _disposed = true;
         _searchCts?.Cancel();
         _playCts?.Cancel();
+        _playlistImportCts?.Cancel();
         _searchCts?.Dispose();
         _playCts?.Dispose();
+        _playlistImportCts?.Dispose();
 
         _audioPlayerService.SnapshotChanged -= OnPlayerSnapshotChanged;
         _audioPlayerService.PlaybackError -= OnPlaybackError;
@@ -519,6 +560,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private bool CanAddSelectedResultToPlaylist() => SelectedTrack is not null && SelectedPlaylist is not null;
     private bool CanPlaySelectedSource() => !IsResolving && SelectedSourceOption is not null && _currentQueueIndex >= 0 && _currentQueueIndex < QueueItems.Count;
     private bool CanRefreshSourceOptions() => !IsResolving && _currentQueueIndex >= 0 && _currentQueueIndex < QueueItems.Count;
+    private bool CanImportSpotifyPlaylist() => !IsBusy && !string.IsNullOrWhiteSpace(SpotifyPlaylistImportInput);
 
     private async Task SearchAsync()
     {
@@ -922,6 +964,122 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         RefreshAllDerivedState();
     }
 
+    private async Task ImportSpotifyPlaylistAsync()
+    {
+        var input = SpotifyPlaylistImportInput.Trim();
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return;
+        }
+
+        _playlistImportCts?.Cancel();
+        _playlistImportCts?.Dispose();
+        _playlistImportCts = new CancellationTokenSource();
+
+        IsImportingPlaylist = true;
+        StatusMessage = "Loading Spotify playlist...";
+
+        try
+        {
+            // Persist optional Spotify API keys if the user entered them for import pagination.
+            if (!string.Equals(_settings.SpotifyClientId, SpotifyClientId, StringComparison.Ordinal) ||
+                !string.Equals(_settings.SpotifyClientSecret, SpotifyClientSecret, StringComparison.Ordinal))
+            {
+                _settings.SpotifyClientId = SpotifyClientId.Trim();
+                _settings.SpotifyClientSecret = SpotifyClientSecret.Trim();
+                PersistSettingsQuietly();
+            }
+
+            var imported = await _spotifyPlaylistImportService
+                .GetPlaylistTracksAsync(input, SpotifyClientId, SpotifyClientSecret, _playlistImportCts.Token)
+                .ConfigureAwait(true);
+
+            if (imported.Tracks.Count == 0)
+            {
+                StatusMessage = "Spotify playlist import found no playable track entries.";
+                return;
+            }
+
+            var targetPlaylist = EnsureImportTargetPlaylist(imported.PlaylistName);
+            var targetTracks = targetPlaylist.Tracks ??= [];
+
+            var added = 0;
+            var unmatched = 0;
+            var failures = 0;
+
+            for (var i = 0; i < imported.Tracks.Count; i++)
+            {
+                _playlistImportCts.Token.ThrowIfCancellationRequested();
+                var sourceTrack = imported.Tracks[i];
+                StatusMessage = $"Importing Spotify playlist {i + 1}/{imported.Tracks.Count}: {sourceTrack.Title}";
+
+                try
+                {
+                    var matched = await SearchBestMatchForImportedTrackAsync(sourceTrack, _playlistImportCts.Token)
+                        .ConfigureAwait(true);
+
+                    if (matched is null)
+                    {
+                        unmatched++;
+                    }
+                    else
+                    {
+                        targetTracks.Add(CloneTrack(matched));
+                        added++;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    failures++;
+                }
+
+                if (i + 1 < imported.Tracks.Count)
+                {
+                    await Task.Delay(120, _playlistImportCts.Token).ConfigureAwait(true);
+                }
+            }
+
+            targetPlaylist.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            if (!ReferenceEquals(SelectedPlaylist, targetPlaylist))
+            {
+                SelectedPlaylist = targetPlaylist;
+            }
+            else
+            {
+                RefreshSelectedPlaylistTracks();
+            }
+
+            NudgePlaylistRefresh(targetPlaylist);
+            PersistSettingsQuietly();
+            RefreshAllDerivedState();
+
+            var partialNote = imported.TotalTrackCount > imported.LoadedTrackCount
+                ? $" Imported {imported.LoadedTrackCount}/{imported.TotalTrackCount} Spotify entries ({imported.SourceLabel})."
+                : string.Empty;
+
+            var warningNote = string.IsNullOrWhiteSpace(imported.Warning) ? string.Empty : $" {imported.Warning}.";
+
+            StatusMessage =
+                $"Spotify import complete: added {added}, unmatched {unmatched}, failed {failures} into {targetPlaylist.Name}.{partialNote}{warningNote}";
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = "Spotify playlist import cancelled.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Spotify import failed: {ex.Message}";
+        }
+        finally
+        {
+            IsImportingPlaylist = false;
+        }
+    }
+
     private void ClearRecents()
     {
         RecentTracks.Clear();
@@ -947,6 +1105,168 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             StatusMessage = $"Failed to save settings: {ex.Message}";
         }
+    }
+
+    private PlaylistDefinition EnsureImportTargetPlaylist(string suggestedName)
+    {
+        if (SelectedPlaylist is not null)
+        {
+            return SelectedPlaylist;
+        }
+
+        var baseName = string.IsNullOrWhiteSpace(suggestedName) ? "Imported Spotify Playlist" : suggestedName.Trim();
+        var uniqueName = MakeUniquePlaylistName(baseName);
+
+        var playlist = new PlaylistDefinition
+        {
+            Name = uniqueName,
+            UpdatedAtUtc = DateTimeOffset.UtcNow,
+            Tracks = []
+        };
+
+        Playlists.Insert(0, playlist);
+        SelectedPlaylist = playlist;
+        DraftPlaylistName = playlist.Name;
+        return playlist;
+    }
+
+    private async Task<SpotifyTrack?> SearchBestMatchForImportedTrackAsync(SpotifyPlaylistImportTrack sourceTrack, CancellationToken cancellationToken)
+    {
+        var queries = BuildImportSearchQueries(sourceTrack);
+        SpotifyTrack? best = null;
+        var bestScore = int.MinValue;
+
+        foreach (var query in queries)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var results = await _searchService
+                .SearchTracksAsync(query, SpotifyClientId, SpotifyClientSecret, 8, cancellationToken)
+                .ConfigureAwait(true);
+
+            foreach (var candidate in results)
+            {
+                var score = ScoreImportedTrackCandidate(sourceTrack, candidate);
+                if (score > bestScore)
+                {
+                    best = candidate;
+                    bestScore = score;
+                }
+            }
+
+            if (bestScore >= 12)
+            {
+                break;
+            }
+        }
+
+        return bestScore >= 4 ? best : null;
+    }
+
+    private static IEnumerable<string> BuildImportSearchQueries(SpotifyPlaylistImportTrack sourceTrack)
+    {
+        var primary = $"{sourceTrack.Artists} {sourceTrack.Title}".Trim();
+        if (!string.IsNullOrWhiteSpace(primary))
+        {
+            yield return primary;
+        }
+
+        var strippedTitle = StripFeatureText(sourceTrack.Title);
+        if (!string.Equals(strippedTitle, sourceTrack.Title, StringComparison.OrdinalIgnoreCase))
+        {
+            var fallback = $"{sourceTrack.Artists} {strippedTitle}".Trim();
+            if (!string.IsNullOrWhiteSpace(fallback))
+            {
+                yield return fallback;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(sourceTrack.Title))
+        {
+            yield return sourceTrack.Title.Trim();
+        }
+    }
+
+    private static int ScoreImportedTrackCandidate(SpotifyPlaylistImportTrack sourceTrack, SpotifyTrack candidate)
+    {
+        var score = 0;
+
+        var sourceTitle = NormalizeForMatch(StripFeatureText(sourceTrack.Title));
+        var candidateTitle = NormalizeForMatch(StripFeatureText(candidate.Title));
+        var sourceArtists = NormalizeForMatch(sourceTrack.Artists);
+        var candidateArtists = NormalizeForMatch(candidate.Artists);
+
+        if (!string.IsNullOrWhiteSpace(sourceTitle) && sourceTitle == candidateTitle)
+        {
+            score += 10;
+        }
+        else if (!string.IsNullOrWhiteSpace(sourceTitle) &&
+                 (candidateTitle.Contains(sourceTitle, StringComparison.Ordinal) ||
+                  sourceTitle.Contains(candidateTitle, StringComparison.Ordinal)))
+        {
+            score += 6;
+        }
+
+        if (!string.IsNullOrWhiteSpace(sourceArtists))
+        {
+            var sourceTokens = sourceArtists.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(static x => x.Length > 1)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            var overlap = sourceTokens.Count(token => candidateArtists.Contains(token, StringComparison.Ordinal));
+            score += Math.Min(8, overlap * 2);
+        }
+
+        if (sourceTrack.Duration > TimeSpan.Zero && candidate.Duration > TimeSpan.Zero)
+        {
+            var delta = Math.Abs((candidate.Duration - sourceTrack.Duration).TotalSeconds);
+            if (delta <= 2) score += 8;
+            else if (delta <= 6) score += 5;
+            else if (delta <= 12) score += 3;
+            else if (delta <= 25) score += 1;
+            else if (delta > 90) score -= 4;
+        }
+
+        return score;
+    }
+
+    private static string StripFeatureText(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return string.Empty;
+        }
+
+        var normalized = title;
+        var featureMarkers = new[] { " (feat.", " (ft.", " feat.", " ft.", " featuring " };
+        foreach (var marker in featureMarkers)
+        {
+            var index = normalized.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (index >= 0)
+            {
+                normalized = normalized[..index];
+                break;
+            }
+        }
+
+        return normalized.Trim();
+    }
+
+    private static string NormalizeForMatch(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var chars = value
+            .ToLowerInvariant()
+            .Select(c => char.IsLetterOrDigit(c) ? c : ' ')
+            .ToArray();
+
+        return string.Join(
+            " ",
+            new string(chars).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
     }
 
     private async Task PlayAndQueueTrackAsync(SpotifyTrack track)
@@ -1141,8 +1461,16 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 ApplySourceOptions(track, candidates, source.VideoId);
             }
 
+            var usingCachedAudio = _audioCacheService.TryGetCachedPath(track, source, out var cachedPath) &&
+                                   !string.IsNullOrWhiteSpace(cachedPath);
+            var playbackPath = usingCachedAudio ? cachedPath! : source.StreamUrl;
+            if (!usingCachedAudio)
+            {
+                _audioCacheService.CacheInBackground(track, source);
+            }
+
             _ignorePlaybackEndUntilUtc = DateTimeOffset.UtcNow.AddMilliseconds(1200);
-            _audioPlayerService.PlayStream(source.StreamUrl, source.Duration ?? track.Duration);
+            _audioPlayerService.PlayStream(playbackPath, source.Duration ?? track.Duration);
             _audioPlayerService.Volume = Volume;
 
             if (addToHistory)
@@ -1154,8 +1482,12 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             }
 
             AddRecent(track);
-            NowPlayingSource = $"YouTube: {source.Title}  •  {source.Channel}";
-            StatusMessage = userInitiated ? $"Playing: {track.Title}" : $"Auto-playing: {track.Title}";
+            NowPlayingSource = usingCachedAudio
+                ? $"YouTube (cached): {source.Title}  •  {source.Channel}"
+                : $"YouTube: {source.Title}  •  {source.Channel}";
+            StatusMessage = userInitiated
+                ? $"Playing: {track.Title}{(usingCachedAudio ? " (cached)" : string.Empty)}"
+                : $"Auto-playing: {track.Title}{(usingCachedAudio ? " (cached)" : string.Empty)}";
             PersistSettingsQuietly();
         }
         catch (OperationCanceledException)
@@ -1548,7 +1880,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     private void RefreshAllDerivedState()
     {
-        OnPropertiesChanged(nameof(SearchSummary), nameof(ResolveSummary), nameof(QueueSummary), nameof(QueueDurationLabel), nameof(QueuePositionLabel), nameof(UpNextLabel), nameof(QueueModeSummary), nameof(SourcePickerSummary), nameof(PlaylistSummary), nameof(RecentsSummary), nameof(SelectedPlaylistSummary));
+        OnPropertiesChanged(nameof(SearchSummary), nameof(ResolveSummary), nameof(QueueSummary), nameof(QueueDurationLabel), nameof(QueuePositionLabel), nameof(UpNextLabel), nameof(QueueModeSummary), nameof(SourcePickerSummary), nameof(PlaylistSummary), nameof(RecentsSummary), nameof(SelectedPlaylistSummary), nameof(SpotifyPlaylistImportSummary));
         RefreshCommandStates();
     }
 
@@ -1573,6 +1905,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _clearRecentsCommand?.RaiseCanExecuteChanged();
         _playSelectedSourceCommand?.RaiseCanExecuteChanged();
         _refreshSourceOptionsCommand?.RaiseCanExecuteChanged();
+        _importSpotifyPlaylistCommand?.RaiseCanExecuteChanged();
     }
 
     private static void ShuffleList<T>(IList<T> items)
@@ -1628,6 +1961,23 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             : $"{SourceOptions.Count} source options • selected: {selected.Channel}";
     }
 
+    private string BuildSpotifyPlaylistImportSummary()
+    {
+        if (IsImportingPlaylist)
+        {
+            return "Importing Spotify playlist tracks (with retry/backoff on rate limits)...";
+        }
+
+        if (string.IsNullOrWhiteSpace(SpotifyPlaylistImportInput))
+        {
+            return "Paste a Spotify playlist URL/URI to import. Public playlists work without login (Spotify page imports may preload ~30 tracks). Add Spotify API keys below for full paged imports.";
+        }
+
+        return string.IsNullOrWhiteSpace(SpotifyClientId) || string.IsNullOrWhiteSpace(SpotifyClientSecret)
+            ? "Using public playlist import mode (no Spotify login). Large playlists may import the first preloaded tracks only."
+            : "Spotify API keys detected: imports can page through the full playlist with automatic rate-limit waiting.";
+    }
+
     private void UpdateNowPlayingFromQueuePointer(bool clearIfNone = false)
     {
         if (_currentQueueIndex < 0 || _currentQueueIndex >= QueueItems.Count)
@@ -1656,18 +2006,24 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private string GeneratePlaylistName()
     {
         var baseName = $"Playlist {DateTime.Now:MMM d}";
-        if (Playlists.All(p => !string.Equals(p.Name, baseName, StringComparison.OrdinalIgnoreCase)))
+        return MakeUniquePlaylistName(baseName);
+    }
+
+    private string MakeUniquePlaylistName(string baseName)
+    {
+        var normalizedBase = string.IsNullOrWhiteSpace(baseName) ? "Playlist" : baseName.Trim();
+        if (Playlists.All(p => !string.Equals(p.Name, normalizedBase, StringComparison.OrdinalIgnoreCase)))
         {
-            return baseName;
+            return normalizedBase;
         }
 
         var i = 2;
-        while (Playlists.Any(p => string.Equals(p.Name, $"{baseName} {i}", StringComparison.OrdinalIgnoreCase)))
+        while (Playlists.Any(p => string.Equals(p.Name, $"{normalizedBase} {i}", StringComparison.OrdinalIgnoreCase)))
         {
             i++;
         }
 
-        return $"{baseName} {i}";
+        return $"{normalizedBase} {i}";
     }
 
     private static SpotifyTrack CloneTrack(SpotifyTrack track) => new(

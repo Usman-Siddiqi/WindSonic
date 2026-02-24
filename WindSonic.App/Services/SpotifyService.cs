@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Net;
 using System.Text.Json;
 using WindSonic.App.Models;
 
@@ -28,9 +29,7 @@ public sealed class SpotifyService
         var uri =
             $"https://itunes.apple.com/search?media=music&entity=song&country=us&limit={Math.Clamp(limit, 1, 200)}&term={Uri.EscapeDataString(query)}";
 
-        using var response = await HttpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-            .ConfigureAwait(false);
-
+        using var response = await GetWithRetryAsync(uri, cancellationToken).ConfigureAwait(false);
         var payload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
@@ -102,6 +101,55 @@ public sealed class SpotifyService
         client.DefaultRequestHeaders.UserAgent.ParseAdd("WindSonicNative/1.0");
         client.Timeout = TimeSpan.FromSeconds(20);
         return client;
+    }
+
+    private static async Task<HttpResponseMessage> GetWithRetryAsync(string uri, CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 4;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var response = await HttpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!ShouldRetry(response.StatusCode) || attempt == maxAttempts)
+            {
+                return response;
+            }
+
+            var delay = GetRetryDelay(response, attempt);
+            response.Dispose();
+            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+        }
+
+        throw new InvalidOperationException("Unexpected retry loop exit.");
+    }
+
+    private static bool ShouldRetry(HttpStatusCode statusCode) =>
+        statusCode == HttpStatusCode.TooManyRequests ||
+        statusCode == HttpStatusCode.BadGateway ||
+        statusCode == HttpStatusCode.ServiceUnavailable ||
+        statusCode == HttpStatusCode.GatewayTimeout;
+
+    private static TimeSpan GetRetryDelay(HttpResponseMessage response, int attempt)
+    {
+        var retryAfter = response.Headers.RetryAfter;
+        if (retryAfter?.Delta is { } delta && delta > TimeSpan.Zero)
+        {
+            return delta > TimeSpan.FromSeconds(12) ? TimeSpan.FromSeconds(12) : delta;
+        }
+
+        if (retryAfter?.Date is { } date)
+        {
+            var computed = date - DateTimeOffset.UtcNow;
+            if (computed > TimeSpan.Zero)
+            {
+                return computed > TimeSpan.FromSeconds(12) ? TimeSpan.FromSeconds(12) : computed;
+            }
+        }
+
+        var seconds = Math.Min(8, Math.Pow(2, Math.Max(0, attempt - 1)));
+        return TimeSpan.FromSeconds(seconds);
     }
 }
 

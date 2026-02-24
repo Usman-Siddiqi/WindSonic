@@ -419,11 +419,70 @@
                         </ListBox.ItemTemplate>
                       </ListBox>
 
-                      <WrapPanel Grid.Row="3" Margin="0,8,0,0">
-                        <Button Margin="0,0,6,6" Content="Add Search Selected" Command="{Binding AddSelectedResultToPlaylistCommand}" Style="{StaticResource SmallBtn}" />
-                        <Button Margin="0,0,6,6" Content="Load + Play" Command="{Binding LoadPlaylistToQueueCommand}" Style="{StaticResource SmallBtn}" />
-                        <Button Margin="0,0,0,6" Content="Append to Queue" Command="{Binding AppendPlaylistToQueueCommand}" Style="{StaticResource SmallBtn}" />
-                      </WrapPanel>
+                      <StackPanel Grid.Row="3" Margin="0,8,0,0">
+                        <WrapPanel>
+                          <Button Margin="0,0,6,6" Content="Add Search Selected" Command="{Binding AddSelectedResultToPlaylistCommand}" Style="{StaticResource SmallBtn}" />
+                          <Button Margin="0,0,6,6" Content="Load + Play" Command="{Binding LoadPlaylistToQueueCommand}" Style="{StaticResource SmallBtn}" />
+                          <Button Margin="0,0,0,6" Content="Append to Queue" Command="{Binding AppendPlaylistToQueueCommand}" Style="{StaticResource SmallBtn}" />
+                        </WrapPanel>
+
+                        <Grid Margin="0,2,0,0">
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <TextBox Grid.Column="0"
+                                   Height="32"
+                                   Margin="0,0,8,0"
+                                   Text="{Binding SpotifyPlaylistImportInput, UpdateSourceTrigger=PropertyChanged}"
+                                   ToolTip="Paste a Spotify playlist URL or spotify:playlist:... URI" />
+                          <Button Grid.Column="1"
+                                  Content="Import Spotify Playlist"
+                                  Command="{Binding ImportSpotifyPlaylistCommand}"
+                                  Style="{StaticResource SmallBtn}"
+                                  Background="#D0173B3A"
+                                  BorderBrush="#4B2CE8D8" />
+                        </Grid>
+
+                        <TextBlock Margin="0,6,0,0"
+                                   Text="{Binding SpotifyPlaylistImportSummary}"
+                                   FontSize="10.5"
+                                   Foreground="{StaticResource TextSoftBrush}"
+                                   TextWrapping="Wrap" />
+
+                        <Expander Margin="0,6,0,0"
+                                  Header="Advanced: Spotify API keys (optional for full imports)"
+                                  Foreground="#DCE5EF">
+                          <Grid Margin="0,6,0,0">
+                            <Grid.RowDefinitions>
+                              <RowDefinition Height="Auto" />
+                              <RowDefinition Height="Auto" />
+                              <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                              <ColumnDefinition Width="Auto" />
+                              <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Client ID" Foreground="{StaticResource TextSoftBrush}" />
+                            <TextBox Grid.Column="1"
+                                     Height="30"
+                                     Text="{Binding SpotifyClientId, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="0,8,8,0" Text="Client Secret" Foreground="{StaticResource TextSoftBrush}" />
+                            <TextBox Grid.Row="1"
+                                     Grid.Column="1"
+                                     Height="30"
+                                     Margin="0,8,0,0"
+                                     Text="{Binding SpotifyClientSecret, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,8,0,0">
+                              <Button Content="Save Keys" Command="{Binding SaveCredentialsCommand}" Style="{StaticResource SmallBtn}" />
+                              <TextBlock Margin="8,4,0,0" FontSize="10.5" Foreground="{StaticResource TextSoftBrush}" Text="Only needed if Spotify page import doesn't load the full playlist." />
+                            </StackPanel>
+                          </Grid>
+                        </Expander>
+                      </StackPanel>
 
                       <TextBlock Grid.Row="4" Margin="0,2,0,0" Text="{Binding SelectedPlaylistSummary}" Foreground="{StaticResource TextSoftBrush}" FontSize="11" />
                       <ListBox x:Name="PlaylistTracksList"
