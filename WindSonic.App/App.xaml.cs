@@ -1,10 +1,10 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
-using WindSound.App.Services;
-using WindSound.App.ViewModels;
+using WindSonic.App.Services;
+using WindSonic.App.ViewModels;
 
-namespace WindSound.App;
+namespace WindSonic.App;
 
 public partial class App : Application
 {
@@ -41,7 +41,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            ShowFatalStartupError("WindSound failed during startup.", ex);
+            ShowFatalStartupError("WindSonic failed during startup.", ex);
             Shutdown(-1);
         }
     }
@@ -103,8 +103,8 @@ public partial class App : Application
         try
         {
             MessageBox.Show(
-                $"{title}\n\n{ex.Message}\n\nA full error log was written to %AppData%\\WindSound\\startup-error.log",
-                "WindSound Startup Error",
+                $"{title}\n\n{ex.Message}\n\nA full error log was written to %AppData%\\WindSonic\\startup-error.log",
+                "WindSonic Startup Error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
@@ -117,7 +117,7 @@ public partial class App : Application
     private static void LogFatal(string title, Exception ex)
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var dir = Path.Combine(appData, "WindSound");
+        var dir = Path.Combine(appData, "WindSonic");
         Directory.CreateDirectory(dir);
 
         var path = Path.Combine(dir, "startup-error.log");
@@ -125,3 +125,4 @@ public partial class App : Application
         File.AppendAllText(path, text);
     }
 }
+

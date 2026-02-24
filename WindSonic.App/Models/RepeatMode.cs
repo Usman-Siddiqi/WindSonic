@@ -1,4 +1,4 @@
-namespace WindSound.App.Models;
+namespace WindSonic.App.Models;
 
 public enum RepeatMode
 {
@@ -6,3 +6,4 @@ public enum RepeatMode
     All = 1,
     One = 2
 }
+

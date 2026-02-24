@@ -1,12 +1,12 @@
-<Window x:Class="WindSound.App.MainWindow"
+<Window x:Class="WindSonic.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
-        Title="WindSound"
-        Icon="pack://application:,,,/Assets/WindSound.ico"
+        Title="WindSonic"
+        Icon="pack://application:,,,/Assets/WindSonic.ico"
         Width="1260"
         Height="830"
         MinWidth="980"
@@ -152,7 +152,7 @@
             <StackPanel Orientation="Horizontal" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
               <Border Width="34" Height="34" CornerRadius="11" Background="#18202327" BorderBrush="#22FFFFFF" BorderThickness="1"><Ellipse Width="12" Height="12" Fill="#2CE8D8" Opacity="0.9" /></Border>
               <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
-                <TextBlock Text="WindSound" FontFamily="Bahnschrift SemiCondensed" FontSize="20" FontWeight="Bold" />
+                <TextBlock Text="WindSonic" FontFamily="Bahnschrift SemiCondensed" FontSize="20" FontWeight="Bold" />
                 <TextBlock Text="Native WPF music player: Apple/iTunes search + YouTube audio" FontSize="11" Foreground="{StaticResource TextSoftBrush}" />
               </StackPanel>
             </StackPanel>
@@ -514,3 +514,4 @@
     </Border>
   </Grid>
 </Window>
+

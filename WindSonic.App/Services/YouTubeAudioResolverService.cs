@@ -1,9 +1,9 @@
-using WindSound.App.Models;
+using WindSonic.App.Models;
 using YoutubeExplode;
 using YoutubeExplode.Search;
 using YoutubeExplode.Videos.Streams;
 
-namespace WindSound.App.Services;
+namespace WindSonic.App.Services;
 
 public sealed class YouTubeAudioResolverService
 {
@@ -212,3 +212,4 @@ public sealed class YouTubeAudioResolverService
         return score;
     }
 }
+

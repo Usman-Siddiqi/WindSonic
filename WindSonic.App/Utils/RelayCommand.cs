@@ -1,6 +1,6 @@
 using System.Windows.Input;
 
-namespace WindSound.App.Utils;
+namespace WindSonic.App.Utils;
 
 public sealed class RelayCommand : ICommand
 {
@@ -21,3 +21,4 @@ public sealed class RelayCommand : ICommand
 
     public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 }
+

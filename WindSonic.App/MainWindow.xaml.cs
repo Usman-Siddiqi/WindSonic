@@ -5,11 +5,11 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Navigation;
-using WindSound.App.Interop;
-using WindSound.App.Models;
-using WindSound.App.ViewModels;
+using WindSonic.App.Interop;
+using WindSonic.App.Models;
+using WindSonic.App.ViewModels;
 
-namespace WindSound.App;
+namespace WindSonic.App;
 
 public partial class MainWindow : Window
 {
@@ -272,3 +272,4 @@ public partial class MainWindow : Window
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }
 }
+

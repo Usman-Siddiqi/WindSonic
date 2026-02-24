@@ -1,4 +1,4 @@
-namespace WindSound.App.Models;
+namespace WindSonic.App.Models;
 
 public sealed class RecentTrackEntry
 {
@@ -13,3 +13,4 @@ public sealed class RecentTrackEntry
 
     public string PlayedAtLabel => PlayedAtUtc.ToLocalTime().ToString("MMM d h:mm tt");
 }
+

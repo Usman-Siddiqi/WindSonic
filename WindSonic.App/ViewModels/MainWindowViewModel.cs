@@ -1,10 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using WindSound.App.Models;
-using WindSound.App.Services;
-using WindSound.App.Utils;
+using WindSonic.App.Models;
+using WindSonic.App.Services;
+using WindSonic.App.Utils;
 
-namespace WindSound.App.ViewModels;
+namespace WindSonic.App.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject, IDisposable
 {
@@ -787,7 +787,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         if (deduped.Count == 0)
         {
-            StatusMessage = "Search or play a few tracks first so WindSound can build a surprise mix.";
+            StatusMessage = "Search or play a few tracks first so WindSonic can build a surprise mix.";
             return;
         }
 
@@ -1687,3 +1687,4 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         return value.TotalHours >= 1 ? value.ToString(@"h\:mm\:ss") : value.ToString(@"m\:ss");
     }
 }
+

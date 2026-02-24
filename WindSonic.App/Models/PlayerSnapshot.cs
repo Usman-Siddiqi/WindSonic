@@ -1,4 +1,4 @@
-namespace WindSound.App.Models;
+namespace WindSonic.App.Models;
 
 public sealed record PlayerSnapshot(
     bool HasMedia,
@@ -6,3 +6,4 @@ public sealed record PlayerSnapshot(
     bool IsPaused,
     TimeSpan Position,
     TimeSpan Duration);
+

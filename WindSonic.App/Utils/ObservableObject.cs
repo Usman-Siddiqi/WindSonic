@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace WindSound.App.Utils;
+namespace WindSonic.App.Utils;
 
 public abstract class ObservableObject : INotifyPropertyChanged
 {
@@ -32,3 +32,4 @@ public abstract class ObservableObject : INotifyPropertyChanged
         }
     }
 }
+

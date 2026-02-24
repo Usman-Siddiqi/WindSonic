@@ -1,4 +1,4 @@
-namespace WindSound.App.Models;
+namespace WindSonic.App.Models;
 
 public sealed record YouTubeAudioSource(
     string VideoId,
@@ -19,3 +19,4 @@ public sealed record YouTubeAudioSource(
 
     public override string ToString() => PickerLabel;
 }
+

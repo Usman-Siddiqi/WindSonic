@@ -1,4 +1,4 @@
-namespace WindSound.App.Models;
+namespace WindSonic.App.Models;
 
 public sealed class QueuedTrack
 {
@@ -19,3 +19,4 @@ public sealed class QueuedTrack
 
     public string DurationLabel => Track?.DurationLabel ?? "0:00";
 }
+

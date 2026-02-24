@@ -1,4 +1,4 @@
-namespace WindSound.App.Models;
+namespace WindSonic.App.Models;
 
 public sealed class AppSettings
 {
@@ -22,3 +22,4 @@ public sealed class AppSettings
 
     public List<RecentTrackEntry> RecentTracks { get; set; } = [];
 }
+

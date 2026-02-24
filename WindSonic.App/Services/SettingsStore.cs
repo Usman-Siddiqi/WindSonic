@@ -1,8 +1,8 @@
 using System.IO;
 using System.Text.Json;
-using WindSound.App.Models;
+using WindSonic.App.Models;
 
-namespace WindSound.App.Services;
+namespace WindSonic.App.Services;
 
 public sealed class SettingsStore
 {
@@ -16,7 +16,7 @@ public sealed class SettingsStore
     public SettingsStore()
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        _settingsPath = Path.Combine(appData, "WindSound", "settings.json");
+        _settingsPath = Path.Combine(appData, "WindSonic", "settings.json");
     }
 
     public AppSettings Load()
@@ -49,3 +49,4 @@ public sealed class SettingsStore
         File.WriteAllText(_settingsPath, json);
     }
 }
+

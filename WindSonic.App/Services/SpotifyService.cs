@@ -1,11 +1,11 @@
 using System.Net.Http;
 using System.Text.Json;
-using WindSound.App.Models;
+using WindSonic.App.Models;
 
-namespace WindSound.App.Services;
+namespace WindSonic.App.Services;
 
 // Kept class name for minimal app wiring changes. This now uses Apple's public iTunes Search API
-// for metadata search (no auth required), then WindSound still plays the matched track from YouTube.
+// for metadata search (no auth required), then WindSonic still plays the matched track from YouTube.
 public sealed class SpotifyService
 {
     private static readonly HttpClient HttpClient = CreateHttpClient();
@@ -99,8 +99,9 @@ public sealed class SpotifyService
                 System.Net.DecompressionMethods.Brotli
         });
 
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("WindSoundNative/1.0");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("WindSonicNative/1.0");
         client.Timeout = TimeSpan.FromSeconds(20);
         return client;
     }
 }
+

@@ -1,8 +1,8 @@
 using System.Windows.Threading;
 using LibVLCSharp.Shared;
-using WindSound.App.Models;
+using WindSonic.App.Models;
 
-namespace WindSound.App.Services;
+namespace WindSonic.App.Services;
 
 public sealed class NativeAudioPlayerService : IDisposable
 {
@@ -372,3 +372,4 @@ public sealed class NativeAudioPlayerService : IDisposable
         return value;
     }
 }
+

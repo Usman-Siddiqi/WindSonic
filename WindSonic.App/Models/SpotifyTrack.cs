@@ -1,4 +1,4 @@
-namespace WindSound.App.Models;
+namespace WindSonic.App.Models;
 
 public sealed record SpotifyTrack(
     string Id,
@@ -16,3 +16,4 @@ public sealed record SpotifyTrack(
 
     public string SearchHint => $"{Artists} - {Title}";
 }
+

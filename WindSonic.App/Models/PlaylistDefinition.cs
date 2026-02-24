@@ -1,4 +1,4 @@
-namespace WindSound.App.Models;
+namespace WindSonic.App.Models;
 
 public sealed class PlaylistDefinition
 {
@@ -21,3 +21,4 @@ public sealed class PlaylistDefinition
 
     public override string ToString() => Name;
 }
+

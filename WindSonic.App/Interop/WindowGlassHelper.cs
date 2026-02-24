@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 
-namespace WindSound.App.Interop;
+namespace WindSonic.App.Interop;
 
 public static class WindowGlassHelper
 {
@@ -67,3 +67,4 @@ public static class WindowGlassHelper
         public int Bottom;
     }
 }
+
