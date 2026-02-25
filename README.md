@@ -147,3 +147,19 @@ taskkill /IM WindSonic.exe /F 2>$null
 - LibVLCSharp + VideoLAN.LibVLC.Windows
 - YoutubeExplode
 - iTunes Search API (Apple)
+
+## UI Testing in Cloud/Linux Environments
+
+WindSonic is a native **Windows WPF** app, so browser E2E tools (like Playwright) cannot directly automate its desktop UI.
+
+A quick static UI integrity check is available:
+
+```bash
+python3 scripts/ui_contract_audit.py
+```
+
+This verifies that:
+- XAML bindings for `MainWindow` map to members on `MainWindowViewModel`
+- XAML-referenced event handlers exist in `MainWindow.xaml.cs`
+
+For full interactive UI automation, run tests on a Windows environment with a desktop automation framework such as **FlaUI**.
